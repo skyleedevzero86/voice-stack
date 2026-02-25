@@ -1,16 +1,16 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "Voice Web",
-  description: "Voice Web Application",
+  title: 'Qwen3-TTS Voice',
+  description: 'Text-to-Speech with Qwen3-TTS (CustomVoice, VoiceDesign, VoiceClone)',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="ko">
       <body>{children}</body>

@@ -9,13 +9,14 @@ import {
   getSynthesisDownloadUrl,
 } from '@/application/api/ttsApi';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
 export default function BoardListPage() {
   const [data, setData] = useState<SynthesisListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [detail, setDetail] = useState<SynthesisRecord | null>(null);
@@ -27,7 +28,7 @@ export default function BoardListPage() {
     try {
       const res = await fetchSynthesisList({
         page,
-        size: PAGE_SIZE,
+        size: pageSize,
         search: search.trim() || undefined,
       });
       setData(res);
@@ -36,7 +37,7 @@ export default function BoardListPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     loadList();
@@ -47,6 +48,8 @@ export default function BoardListPage() {
     setSearch(searchInput.trim());
     setPage(0);
   };
+
+  const totalPages = data != null ? Math.max(0, Number(data.totalPages) || 0) : 0;
 
   const openDetail = useCallback(async (id: number) => {
     setDetailLoading(true);
@@ -129,9 +132,43 @@ export default function BoardListPage() {
         <p style={{ color: 'var(--muted)' }}>목록 불러오는 중…</p>
       ) : data ? (
         <>
-          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 12 }}>
-            전체 {data.total}건 (페이지 {data.page + 1} / {data.totalPages || 1})
-          </p>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 16,
+              flexWrap: 'wrap',
+              marginBottom: 12,
+            }}
+          >
+            <span style={{ color: 'var(--muted)', fontSize: 14 }}>
+              전체 {data.total}건 (페이지 {data.page + 1} / {Math.max(1, data.totalPages)})
+            </span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
+              <span style={{ color: 'var(--muted)' }}>페이지 크기</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(0);
+                }}
+                style={{
+                  padding: '6px 10px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 6,
+                  color: 'var(--text)',
+                }}
+              >
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <div
             style={{
               border: '1px solid var(--border)',
@@ -152,14 +189,14 @@ export default function BoardListPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.items.length === 0 ? (
+                {(data.items ?? []).length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ padding: 24, color: 'var(--muted)', textAlign: 'center' }}>
                       저장된 합성 기록이 없습니다. 합성 시 &quot;목록에 저장&quot;을 켜면 여기에 표시됩니다.
                     </td>
                   </tr>
                 ) : (
-                  data.items.map((item) => (
+                  (data.items ?? []).map((item) => (
                     <tr
                       key={item.id}
                       style={{ borderBottom: '1px solid var(--border)' }}
@@ -211,41 +248,76 @@ export default function BoardListPage() {
             </table>
           </div>
 
-          {data.totalPages > 1 && (
-            <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                disabled={page <= 0}
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                style={{
-                  padding: '8px 16px',
-                  background: page <= 0 ? 'var(--border)' : 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  color: 'var(--text)',
-                }}
-              >
-                이전
-              </button>
-              <span style={{ color: 'var(--muted)' }}>
-                {page + 1} / {data.totalPages}
-              </span>
-              <button
-                type="button"
-                disabled={page >= data.totalPages - 1}
-                onClick={() => setPage((p) => p + 1)}
-                style={{
-                  padding: '8px 16px',
-                  background: page >= data.totalPages - 1 ? 'var(--border)' : 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  color: 'var(--text)',
-                }}
-              >
-                다음
-              </button>
-            </div>
-          )}
+          <div
+            style={{
+              marginTop: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              type="button"
+              disabled={page <= 0}
+              onClick={() => setPage(0)}
+              style={{
+                padding: '8px 12px',
+                background: page <= 0 ? 'var(--border)' : 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                color: 'var(--text)',
+              }}
+            >
+              처음
+            </button>
+            <button
+              type="button"
+              disabled={page <= 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              style={{
+                padding: '8px 12px',
+                background: page <= 0 ? 'var(--border)' : 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                color: 'var(--text)',
+              }}
+            >
+              이전
+            </button>
+            <span style={{ padding: '8px 12px', minWidth: 48, textAlign: 'center', color: 'var(--text)', fontSize: 14 }}>
+              {page + 1} / {Math.max(1, totalPages)}
+            </span>
+            <button
+              type="button"
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              style={{
+                padding: '8px 12px',
+                background: page >= totalPages - 1 ? 'var(--border)' : 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                color: 'var(--text)',
+              }}
+            >
+              다음
+            </button>
+            <button
+              type="button"
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage(Math.max(0, totalPages - 1))}
+              style={{
+                padding: '8px 12px',
+                background: page >= totalPages - 1 ? 'var(--border)' : 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                color: 'var(--text)',
+              }}
+            >
+              마지막
+            </button>
+          </div>
         </>
       ) : null}
 

@@ -68,6 +68,15 @@ export async function fetchSpeakers(): Promise<SpeakersResponse> {
   return res.json();
 }
 
+export interface LanguagesResponse {
+  languages: string[];
+}
+
+export async function fetchLanguages(): Promise<LanguagesResponse> {
+  const res = await fetch(`${base()}/api/tts/languages`);
+  return res.json();
+}
+
 export interface UploadRefAudioResponse {
   url: string;
   key: string;

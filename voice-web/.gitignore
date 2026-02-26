@@ -1,0 +1,30 @@
+pnpm-lock.yaml
+# dependencies
+node_modules
+.pnpm-store
+# Next.js
+.next
+out
+
+# build
+dist
+build
+
+# misc
+.DS_Store
+*.pem
+.env*.local
+
+# debug
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript
+next-env.d.ts
+*.tsbuildinfo
+
+# IDE
+.idea
+.vscode

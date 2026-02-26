@@ -6,6 +6,7 @@ export interface TtsResponse {
   sampleRate?: number;
   errorCode?: string;
   message?: string;
+  synthesisId?: number;
 }
 
 export interface Speaker {

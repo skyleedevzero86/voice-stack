@@ -18,7 +18,7 @@ TARGET_SAMPLE_RATE = 24000
 DURATION_SEC = 2.0
 BEEP_SEC = 2.0  
 BEEP_HZ = 440
-GENERATE_TIMEOUT_SEC = int(os.getenv("QWEN_TTS_TIMEOUT", "300"))
+GENERATE_TIMEOUT_SEC = int(os.getenv("QWEN_TTS_TIMEOUT", "900"))
 
 def make_pcm():
     total_samples = int(TARGET_SAMPLE_RATE * DURATION_SEC) * 2
@@ -482,6 +482,7 @@ def main():
         for m, mid in _MODE_MODEL_DEFAULTS.items():
             print(f"  {m:16s} -> {mid}")
     print(f"  fallback 비프: {DURATION_SEC}초, base64 길이={len(FALLBACK_BASE64)}")
+    print(f"  생성 타임아웃: {GENERATE_TIMEOUT_SEC}초 (QWEN_TTS_TIMEOUT 환경변수로 변경 가능)")
     print("  상태 확인: 브라우저에서 http://localhost:8000/tts/info")
     if Qwen3TTSModel is None:
         print("  참고: qwen-tts 미설치. 설치: pip install qwen-tts")

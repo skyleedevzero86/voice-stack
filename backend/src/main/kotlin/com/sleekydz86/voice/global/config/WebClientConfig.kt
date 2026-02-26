@@ -19,12 +19,13 @@ class WebClientConfig {
     fun webClient(
         @Value("\${tts.service.base-url:http://localhost:8000}") baseUrl: String
     ): WebClient {
+        val ttsTimeoutMinutes = 20L
         val httpClient = HttpClient.create()
             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5_000)
-            .responseTimeout(Duration.ofMinutes(10))
+            .responseTimeout(Duration.ofMinutes(ttsTimeoutMinutes))
             .doOnConnected { conn ->
-                conn.addHandlerLast(ReadTimeoutHandler(10, TimeUnit.MINUTES))
-                conn.addHandlerLast(WriteTimeoutHandler(10, TimeUnit.MINUTES))
+                conn.addHandlerLast(ReadTimeoutHandler(ttsTimeoutMinutes, TimeUnit.MINUTES))
+                conn.addHandlerLast(WriteTimeoutHandler(ttsTimeoutMinutes, TimeUnit.MINUTES))
             }
         return WebClient.builder()
             .baseUrl(baseUrl)

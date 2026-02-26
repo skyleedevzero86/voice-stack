@@ -10,6 +10,7 @@ import tempfile
 import wave
 from typing import Optional
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 
 PORT = 8000
 TARGET_SAMPLE_RATE = 24000
@@ -430,9 +431,13 @@ class TtsStubHandler(BaseHTTPRequestHandler):
         pass
 
 
+class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+
+
 def main():
     try:
-        server = HTTPServer(("", PORT), TtsStubHandler)
+        server = ThreadingHTTPServer(("", PORT), TtsStubHandler)
     except OSError as e:
         if e.errno == 98 or "10048" in str(e) or "Address already in use" in str(e):
             print(f"오류: 포트 {PORT}이 이미 사용 중입니다. 기존 tts_stub 프로세스를 종료한 뒤 다시 실행하세요.")

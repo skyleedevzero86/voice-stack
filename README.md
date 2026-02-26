@@ -4,11 +4,11 @@ TTS(음성 합성) 웹 애플리케이션 스택. **CustomVoice**, **VoiceDesign
 
 ## 구조
 
-| 디렉터리 | 설명 | 기술 스택 |
-|----------|------|------------|
-| **backend** | API 서버 (음성 합성 프록시, 합성 기록, 참조 음성 업로드) | Kotlin 2.2, Spring Boot 4, Java 21 |
-| **voice-web** | 프론트엔드 (합성 폼, 목록/페이징, 참조 음성 미리듣기) | Next.js 15, React 19, pnpm |
-| **tts-server** | TTS 스텁 (실제 TTS 없이 개발용) | Python 3, HTTP 서버 |
+| 디렉터리       | 설명                                                     | 기술 스택                          |
+| -------------- | -------------------------------------------------------- | ---------------------------------- |
+| **backend**    | API 서버 (음성 합성 프록시, 합성 기록, 참조 음성 업로드) | Kotlin 2.2, Spring Boot 4, Java 21 |
+| **voice-web**  | 프론트엔드 (합성 폼, 목록/페이징, 참조 음성 미리듣기)    | Next.js 15, React 19, pnpm         |
+| **tts-server** | TTS 스텁 (실제 TTS 없이 개발용)                          | Python 3, HTTP 서버                |
 
 - 백엔드는 외부 TTS 서비스(`TTS_SERVICE_URL`)를 호출합니다. 로컬 개발 시 **tts-server**를 스텁으로 사용할 수 있습니다.
 - 참조 음성(VoiceClone) 저장은 MinIO를 사용합니다 (선택).

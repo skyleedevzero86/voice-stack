@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import type { TtsMode } from '@/domain/tts/types';
 import { LANGUAGES } from '@/domain/tts/constants';
@@ -36,6 +36,8 @@ export default function SynthesisPage() {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<number | undefined>(undefined);
   const [audioDurationSec, setAudioDurationSec] = useState<number | null>(null);
+  const [playbackRate, setPlaybackRate] = useState(0.8);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     loadSpeakers();
@@ -50,6 +52,10 @@ export default function SynthesisPage() {
       if (blobUrl && blobUrl.startsWith('blob:')) URL.revokeObjectURL(blobUrl);
     };
   }, [blobUrl]);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = playbackRate;
+  }, [playbackRate]);
 
   const handleUploadRef = useCallback(async () => {
     if (!refAudioFile) return;
@@ -443,15 +449,43 @@ export default function SynthesisPage() {
 
       {blobUrl && (
         <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-          <div style={{ marginBottom: 8, fontSize: 14, color: 'var(--muted)' }}>
-            재생 {audioDurationSec != null && !Number.isNaN(audioDurationSec) && `(${audioDurationSec.toFixed(1)}초)`}
+          <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 14, color: 'var(--muted)' }}>
+              재생 {audioDurationSec != null && !Number.isNaN(audioDurationSec) && `(${audioDurationSec.toFixed(1)}초)`}
+            </span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: 'var(--muted)' }}>
+              속도
+              <select
+                value={playbackRate}
+                onChange={(e) => setPlaybackRate(Number(e.target.value))}
+                style={{
+                  padding: '4px 8px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 6,
+                  color: 'var(--text)',
+                }}
+              >
+                <option value={0.75}>0.75×</option>
+                <option value={0.8}>0.8×</option>
+                <option value={0.9}>0.9×</option>
+                <option value={1}>1× (원래)</option>
+                <option value={1.1}>1.1×</option>
+                <option value={1.25}>1.25×</option>
+              </select>
+            </label>
           </div>
           <audio
+            ref={audioRef}
             key={blobUrl}
             controls
             src={blobUrl}
             style={{ width: '100%', marginBottom: 8 }}
-            onLoadedMetadata={(e) => setAudioDurationSec(e.currentTarget.duration)}
+            onLoadedMetadata={(e) => {
+              const el = e.currentTarget;
+              setAudioDurationSec(el.duration);
+              el.playbackRate = playbackRate;
+            }}
             onLoadStart={() => setAudioDurationSec(null)}
             onError={(e) => console.error('[TTS 재생] 오디오 로드 실패:', e.currentTarget.error)}
           />

@@ -15,5 +15,6 @@ class WebConfig(
             .allowedOrigins(allowedOrigin)
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
             .allowedHeaders("*")
+            .exposedHeaders("X-Synthesis-Id")
     }
 }

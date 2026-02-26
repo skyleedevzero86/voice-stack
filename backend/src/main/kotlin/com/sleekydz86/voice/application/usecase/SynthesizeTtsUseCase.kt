@@ -30,15 +30,22 @@ class SynthesizeTtsUseCase(
 
     fun voiceClone(cmd: VoiceCloneCommand): TtsResponseDto {
         val refAudioForTts = refAudioResolver.resolveToRefAudioForTts(cmd.refAudio)
-        return mapRemoteToDto(ttsGateway.synthesizeVoiceClone(cmd.text, cmd.language, refAudioForTts, cmd.refText, cmd.xVectorOnlyMode))
+        val refText = cmd.refText?.takeIf { it.isNotBlank() }
+        val xVectorOnly = cmd.xVectorOnlyMode == true || refText == null
+        return mapRemoteToDto(ttsGateway.synthesizeVoiceClone(cmd.text, cmd.language, refAudioForTts, refText, xVectorOnly))
     }
 
-    private fun mapRemoteToDto(r: com.sleekydz86.voice.application.dto.RemoteTtsResponse): TtsResponseDto =
-        TtsResponseDto(
-            success = r.success,
-            audioBase64 = r.audioBase64,
-            sampleRate = r.sampleRate,
-            errorCode = r.errorCode,
-            message = r.message
-        )
+    private fun mapRemoteToDto(r: com.sleekydz86.voice.application.dto.RemoteTtsResponse): TtsResponseDto {
+        val hasAudio = r.success && !r.audioBase64.isNullOrBlank() && r.sampleRate != null
+        return if (!hasAudio && r.success)
+            TtsResponseDto(success = false, message = r.message ?: "오디오 데이터 없음")
+        else
+            TtsResponseDto(
+                success = r.success,
+                audioBase64 = r.audioBase64,
+                sampleRate = r.sampleRate,
+                errorCode = r.errorCode,
+                message = r.message
+            )
+    }
 }

@@ -5,6 +5,7 @@ import com.sleekydz86.voice.application.port.TtsGateway
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.bodyToMono
 import reactor.core.publisher.Mono
@@ -27,29 +28,46 @@ class WebClientTtsGateway(
         call("/tts/voice-clone", mapOf(
             "text" to text,
             "language" to language,
-            "ref_audio" to refAudio,
-            "ref_text" to (refText ?: ""),
-            "x_vector_only_mode" to xVectorOnlyMode
+            "refAudio" to refAudio,
+            "refText" to (refText ?: ""),
+            "xVectorOnlyMode" to xVectorOnlyMode
         ))
 
     private fun call(path: String, body: Map<String, Any>): RemoteTtsResponse {
+        log.info("TTS stub call {} {}", path, baseUrl)
         return try {
-            val map = webClient.post()
-                .uri(baseUrl + path)
+            val rawBody = webClient.post()
+                .uri(path)
+                .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
                 .retrieve()
-                .bodyToMono<Map<String, Any>>()
+                .bodyToMono(String::class.java)
                 .onErrorResume { e ->
                     log.warn("TTS 게이트웨이 호출 실패: {}", e.message)
                     val msg = if (baseUrl.contains("localhost") || baseUrl.contains("127.0.0.1"))
                         "TTS 서비스가 실행 중이 아닙니다. TTS_SERVICE_URL을 설정하거나 qwen-tts 서비스를 실행하세요."
                     else (e.message ?: "TTS 서비스를 사용할 수 없습니다.")
-                    Mono.just(mapOf("success" to false, "message" to msg))
+                    Mono.just("""{"success":false,"message":"$msg"}""")
                 }
-                .block() ?: mapOf("success" to false, "message" to "TTS 서비스가 빈 응답을 반환했습니다.")
+                .block() ?: """{"success":false,"message":"TTS 서비스가 빈 응답을 반환했습니다."}"""
+
+            log.info("TTS stub raw response length={} (128000 근처면 정상, 19200이면 중간에서 잘림)", rawBody.length)
+            if (rawBody.length < 50_000) {
+                log.warn(
+                    "TTS 스텁이 0.3초 분량만 반환 중입니다. 포트 8000에 예전 스텁이 떠 있을 수 있습니다. " +
+                    "1) netstat -ano | findstr :8000 로 PID 확인 후 taskkill /PID <pid> /F  2) tts-server에서 python tts_stub.py 재실행  3) 브라우저에서 http://localhost:8000/tts/info 확인 (audioBase64Len=128000 이어야 함)"
+                )
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            val map = (com.fasterxml.jackson.databind.ObjectMapper().readValue(rawBody, Map::class.java) as Map<String, Any>)
+
+            val success = map["success"] as? Boolean ?: false
+            val audioLen = (map["audioBase64"] as? String)?.length ?: 0
+            log.info("TTS stub response {} {} audioBase64Len={}", path, if (success) "200" else "fail", audioLen)
 
             RemoteTtsResponse(
-                success = map["success"] as? Boolean ?: false,
+                success = success,
                 audioBase64 = map["audioBase64"] as? String,
                 sampleRate = (map["sampleRate"] as? Number)?.toInt(),
                 errorCode = map["errorCode"] as? String,

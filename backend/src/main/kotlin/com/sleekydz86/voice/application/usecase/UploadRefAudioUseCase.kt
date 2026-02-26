@@ -25,6 +25,6 @@ class UploadRefAudioUseCase(
     private fun extensionOrWav(filename: String?): String {
         if (filename.isNullOrBlank()) return "wav"
         val ext = filename.substringAfterLast('.', "").lowercase()
-        return if (ext in listOf("wav", "mp3", "ogg", "webm", "flac")) ext else "wav"
+        return if (ext in listOf("wav", "mp3", "ogg", "webm", "flac", "m4a", "aac")) ext else "wav"
     }
 }

@@ -11,5 +11,5 @@ data class VoiceCloneCommand(
     @field:NotBlank(message = "ref_audio(URL 또는 base64)는 필수입니다")
     val refAudio: String,
     val refText: String? = null,
-    val xVectorOnlyMode: Boolean = false
+    val xVectorOnlyMode: Boolean? = false
 )

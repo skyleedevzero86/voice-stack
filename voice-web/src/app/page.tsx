@@ -35,6 +35,7 @@ export default function SynthesisPage() {
   const { synthesize, loading, error, clearError } = useSynthesizeTts();
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<number | undefined>(undefined);
+  const [audioDurationSec, setAudioDurationSec] = useState<number | null>(null);
 
   useEffect(() => {
     loadSpeakers();
@@ -88,6 +89,7 @@ export default function SynthesisPage() {
       clearError();
       setBlobUrl(null);
       setSavedId(undefined);
+      setAudioDurationSec(null);
       if (mode === 'voice-clone' && !refAudio.trim()) return;
       if (mode === 'voice-design' && !instruct.trim()) return;
 
@@ -441,8 +443,18 @@ export default function SynthesisPage() {
 
       {blobUrl && (
         <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-          <div style={{ marginBottom: 8, fontSize: 14, color: 'var(--muted)' }}>재생</div>
-          <audio controls src={blobUrl} style={{ width: '100%', marginBottom: 8 }} />
+          <div style={{ marginBottom: 8, fontSize: 14, color: 'var(--muted)' }}>
+            재생 {audioDurationSec != null && !Number.isNaN(audioDurationSec) && `(${audioDurationSec.toFixed(1)}초)`}
+          </div>
+          <audio
+            key={blobUrl}
+            controls
+            src={blobUrl}
+            style={{ width: '100%', marginBottom: 8 }}
+            onLoadedMetadata={(e) => setAudioDurationSec(e.currentTarget.duration)}
+            onLoadStart={() => setAudioDurationSec(null)}
+            onError={(e) => console.error('[TTS 재생] 오디오 로드 실패:', e.currentTarget.error)}
+          />
           {savedId !== undefined && (
             <Link
               href={`/board/list`}

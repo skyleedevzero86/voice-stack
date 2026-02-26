@@ -19,6 +19,7 @@ import com.sleekydz86.voice.application.usecase.SynthesizeTtsUseCase
 import com.sleekydz86.voice.application.usecase.UploadRefAudioUseCase
 import com.sleekydz86.voice.domain.tts.WavEncoder
 import jakarta.validation.Valid
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -39,17 +40,33 @@ class TtsController(
     private val getSynthesisAudio: GetSynthesisAudioUseCase
 ) {
 
+    private val log = LoggerFactory.getLogger(javaClass)
+
     @PostMapping("/custom-voice", produces = [MediaType.APPLICATION_JSON_VALUE])
     fun customVoice(
         @Valid @RequestBody request: CustomVoiceCommand,
         @RequestParam(required = false) save: Boolean?
     ): ResponseEntity<TtsResponseDto> {
+        log.info("[저장 로직] POST /api/tts/custom-voice — 쿼리 파라미터 save={} (true면 목록에 저장 요청)", save)
         val response = synthesizeTts.customVoice(request)
-        if (save == true && response.success && response.audioBase64 != null && response.sampleRate != null) {
-            val wavBytes = WavEncoder.pcmBase64ToWavBytes(response.audioBase64, response.sampleRate, 1)
-            val speakerOrInstruct = if (request.instruct.isNullOrBlank()) request.speaker else "${request.speaker} / ${request.instruct}"
-            val record = saveSynthesis.save(wavBytes, request.text, "custom-voice", request.language, speakerOrInstruct)
-            return ResponseEntity.ok().header("X-Synthesis-Id", record.id.toString()).body(response)
+        if (save != true) {
+            log.info("[저장 로직] 저장 생략: 쿼리 파라미터 save가 true가 아님 (현재값={}). URL에 ?save=true 가 있어야 저장됨.", save)
+        } else if (!response.success) {
+            log.warn("[저장 로직] 저장 생략: TTS 합성 실패 (success=false). message={}", response.message)
+        } else if (response.audioBase64.isNullOrBlank()) {
+            log.warn("[저장 로직] 저장 생략: 오디오 데이터(audioBase64) 없음. TTS 서버 응답에 오디오가 없습니다.")
+        } else if (response.sampleRate == null) {
+            log.warn("[저장 로직] 저장 생략: sampleRate 없음. TTS 서버 응답에 sampleRate가 없습니다.")
+        } else {
+            val wavBytes = WavEncoder.pcmBase64ToWavBytes(response.audioBase64!!, response.sampleRate!!, 1)
+            if (wavBytes.size <= 44) {
+                log.warn("[저장 로직] 저장 생략: WAV 크기 부족(헤더만 있음). size={} (44 초과여야 저장됨)", wavBytes.size)
+            } else {
+                val speakerOrInstruct = if (request.instruct.isNullOrBlank()) request.speaker else "${request.speaker} / ${request.instruct}"
+                val record = saveSynthesis.save(wavBytes, request.text, "custom-voice", request.language, speakerOrInstruct)
+                log.info("[저장 로직] 합성 음원 저장 완료. ID={}", record.id)
+                return ResponseEntity.ok().header("X-Synthesis-Id", record.id.toString()).body(response)
+            }
         }
         return ResponseEntity.ok(response)
     }
@@ -59,10 +76,20 @@ class TtsController(
         @Valid @RequestBody request: VoiceDesignCommand,
         @RequestParam(required = false) save: Boolean?
     ): ResponseEntity<TtsResponseDto> {
+        log.info("[저장 로직] POST /api/tts/voice-design — 쿼리 파라미터 save={}", save)
         val response = synthesizeTts.voiceDesign(request)
-        if (save == true && response.success && response.audioBase64 != null && response.sampleRate != null) {
+        if (save != true) {
+            log.info("[저장 로직] 저장 생략: save가 true가 아님 (현재값={})", save)
+        } else if (!response.success) {
+            log.warn("[저장 로직] 저장 생략: TTS 합성 실패. message={}", response.message)
+        } else if (response.audioBase64 == null || response.audioBase64.isBlank()) {
+            log.warn("[저장 로직] 저장 생략: 오디오 데이터(audioBase64) 없음")
+        } else if (response.sampleRate == null) {
+            log.warn("[저장 로직] 저장 생략: sampleRate 없음")
+        } else {
             val wavBytes = WavEncoder.pcmBase64ToWavBytes(response.audioBase64, response.sampleRate, 1)
             val record = saveSynthesis.save(wavBytes, request.text, "voice-design", request.language, request.instruct)
+            log.info("[저장 로직] 합성 음원 저장 완료. ID={}", record.id)
             return ResponseEntity.ok().header("X-Synthesis-Id", record.id.toString()).body(response)
         }
         return ResponseEntity.ok(response)
@@ -73,10 +100,20 @@ class TtsController(
         @Valid @RequestBody request: VoiceCloneCommand,
         @RequestParam(required = false) save: Boolean?
     ): ResponseEntity<TtsResponseDto> {
+        log.info("[저장 로직] POST /api/tts/voice-clone — 쿼리 파라미터 save={}", save)
         val response = synthesizeTts.voiceClone(request)
-        if (save == true && response.success && response.audioBase64 != null && response.sampleRate != null) {
+        if (save != true) {
+            log.info("[저장 로직] 저장 생략: save가 true가 아님 (현재값={})", save)
+        } else if (!response.success) {
+            log.warn("[저장 로직] 저장 생략: TTS 합성 실패. message={}", response.message)
+        } else if (response.audioBase64 == null || response.audioBase64.isBlank()) {
+            log.warn("[저장 로직] 저장 생략: 오디오 데이터(audioBase64) 없음")
+        } else if (response.sampleRate == null) {
+            log.warn("[저장 로직] 저장 생략: sampleRate 없음")
+        } else {
             val wavBytes = WavEncoder.pcmBase64ToWavBytes(response.audioBase64, response.sampleRate, 1)
             val record = saveSynthesis.save(wavBytes, request.text, "voice-clone", request.language, null)
+            log.info("[저장 로직] 합성 음원 저장 완료. ID={}", record.id)
             return ResponseEntity.ok().header("X-Synthesis-Id", record.id.toString()).body(response)
         }
         return ResponseEntity.ok(response)

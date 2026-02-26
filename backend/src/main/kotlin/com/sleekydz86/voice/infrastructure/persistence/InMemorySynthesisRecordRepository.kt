@@ -2,6 +2,7 @@ package com.sleekydz86.voice.infrastructure.persistence
 
 import com.sleekydz86.voice.application.dto.SynthesisRecordDto
 import com.sleekydz86.voice.application.port.SynthesisRecordRepository
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -10,6 +11,7 @@ import java.util.concurrent.atomic.AtomicLong
 @Component
 class InMemorySynthesisRecordRepository : SynthesisRecordRepository {
 
+    private val log = LoggerFactory.getLogger(javaClass)
     private val store = ConcurrentHashMap<Long, SynthesisRecordDto>()
     private val idGen = AtomicLong(1)
 
@@ -26,6 +28,7 @@ class InMemorySynthesisRecordRepository : SynthesisRecordRepository {
             createdAt = now
         )
         store[id] = record
+        log.info("[저장 로직] 합성 기록을 메모리에 저장함. ID={}. (백엔드 재시작 시 목록이 사라짐)", id)
         return record
     }
 

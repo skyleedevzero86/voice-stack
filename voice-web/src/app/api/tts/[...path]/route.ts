@@ -31,6 +31,10 @@ function proxyViaHttp(
               h.set(k, Array.isArray(v) ? v.join(', ') : v);
             }
           }
+          const synthesisId = res.headers['x-synthesis-id'];
+          if (synthesisId) {
+            h.set('X-Synthesis-Id', Array.isArray(synthesisId) ? synthesisId[0] : synthesisId);
+          }
           resolve(new NextResponse(buf, { status: res.statusCode ?? 502, headers: h }));
         });
       },

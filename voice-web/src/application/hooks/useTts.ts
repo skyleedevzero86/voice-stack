@@ -14,11 +14,6 @@ async function safeParseTtsResponse(
   res: Response,
   save: boolean | undefined,
 ): Promise<{ data: TtsResponse; savedId?: number }> {
-  const rawId = res.headers.get('X-Synthesis-Id');
-  const savedId = rawId ? parseInt(rawId, 10) : undefined;
-  if (save && rawId) console.log('[저장 로직] 서버에서 저장된 합성 ID 수신: X-Synthesis-Id=', rawId);
-  if (save && !rawId) console.warn('[저장 로직] 서버에서 저장 ID 없음 (X-Synthesis-Id 헤더 없음).');
-
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(text || `서버 오류 (${res.status})`);
@@ -31,6 +26,11 @@ async function safeParseTtsResponse(
   }
 
   const data: TtsResponse = await res.json();
+  const rawId = res.headers.get('X-Synthesis-Id');
+  const savedId =
+    rawId ? parseInt(rawId, 10) : (data.synthesisId != null ? Number(data.synthesisId) : undefined);
+  if (save && savedId != null) console.log('[저장 로직] 서버에서 저장된 합성 ID 수신:', savedId, rawId ? '(헤더)' : '(본문)');
+  if (save && savedId == null) console.warn('[저장 로직] 서버에서 저장 ID 없음 (X-Synthesis-Id 헤더 및 synthesisId 본문 모두 없음).');
   return { data, savedId };
 }
 

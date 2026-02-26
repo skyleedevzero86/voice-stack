@@ -5,5 +5,6 @@ data class TtsResponseDto(
     val audioBase64: String? = null,
     val sampleRate: Int? = null,
     val errorCode: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val synthesisId: Long? = null
 )

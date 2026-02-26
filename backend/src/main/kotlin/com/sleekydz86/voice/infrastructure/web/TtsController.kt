@@ -65,7 +65,8 @@ class TtsController(
                 val speakerOrInstruct = if (request.instruct.isNullOrBlank()) request.speaker else "${request.speaker} / ${request.instruct}"
                 val record = saveSynthesis.save(wavBytes, request.text, "custom-voice", request.language, speakerOrInstruct)
                 log.info("[저장 로직] 합성 음원 저장 완료. ID={}", record.id)
-                return ResponseEntity.ok().header("X-Synthesis-Id", record.id.toString()).body(response)
+                val bodyWithId = response.copy(synthesisId = record.id)
+                return ResponseEntity.ok().header("X-Synthesis-Id", record.id.toString()).body(bodyWithId)
             }
         }
         return ResponseEntity.ok(response)
@@ -90,7 +91,8 @@ class TtsController(
             val wavBytes = WavEncoder.pcmBase64ToWavBytes(response.audioBase64, response.sampleRate, 1)
             val record = saveSynthesis.save(wavBytes, request.text, "voice-design", request.language, request.instruct)
             log.info("[저장 로직] 합성 음원 저장 완료. ID={}", record.id)
-            return ResponseEntity.ok().header("X-Synthesis-Id", record.id.toString()).body(response)
+            val bodyWithId = response.copy(synthesisId = record.id)
+            return ResponseEntity.ok().header("X-Synthesis-Id", record.id.toString()).body(bodyWithId)
         }
         return ResponseEntity.ok(response)
     }
@@ -114,7 +116,8 @@ class TtsController(
             val wavBytes = WavEncoder.pcmBase64ToWavBytes(response.audioBase64, response.sampleRate, 1)
             val record = saveSynthesis.save(wavBytes, request.text, "voice-clone", request.language, null)
             log.info("[저장 로직] 합성 음원 저장 완료. ID={}", record.id)
-            return ResponseEntity.ok().header("X-Synthesis-Id", record.id.toString()).body(response)
+            val bodyWithId = response.copy(synthesisId = record.id)
+            return ResponseEntity.ok().header("X-Synthesis-Id", record.id.toString()).body(bodyWithId)
         }
         return ResponseEntity.ok(response)
     }

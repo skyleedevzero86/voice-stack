@@ -7,15 +7,18 @@ import subprocess
 import sys
 import time
 import tempfile
+import threading
 import wave
 from typing import Optional
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 
 PORT = 8000
 TARGET_SAMPLE_RATE = 24000
 DURATION_SEC = 2.0
 BEEP_SEC = 2.0  
 BEEP_HZ = 440
+GENERATE_TIMEOUT_SEC = int(os.getenv("QWEN_TTS_TIMEOUT", "900"))
 
 def make_pcm():
     total_samples = int(TARGET_SAMPLE_RATE * DURATION_SEC) * 2
@@ -216,6 +219,30 @@ def _load_qwen_model(mode: str) -> tuple[Optional[object], Optional[str]]:
         _qwen_errors[model_id] = err
         return None, err
 
+def _run_with_timeout(fn, timeout_sec: int, label: str):
+    result = [None]
+    error = [None]
+
+    def _worker():
+        try:
+            result[0] = fn()
+        except Exception as e:
+            error[0] = e
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+    t.join(timeout=timeout_sec)
+    if t.is_alive():
+        print(f"[qwen3] {label} 타임아웃 ({timeout_sec}초 초과). 무한 생성 감지.")
+        raise RuntimeError(
+            f"TTS 생성이 {timeout_sec}초를 초과했습니다. "
+            "모델이 무한 생성 상태일 수 있습니다. QWEN_TTS_TIMEOUT 환경변수로 제한 시간을 조정할 수 있습니다."
+        )
+    if error[0]:
+        raise error[0]
+    return result[0]
+
+
 def _qwen_generate(payload: dict, mode: str) -> tuple[bytes, int]:
     if np is None:
         raise RuntimeError("numpy 패키지 없음 (pip install numpy)")
@@ -229,10 +256,9 @@ def _qwen_generate(payload: dict, mode: str) -> tuple[bytes, int]:
     if mode == "voice-design":
         if not instruct:
             instruct = "A calm, natural voice."
-        wavs, sr = model.generate_voice_design(
-            text=text,
-            language=language,
-            instruct=instruct,
+        wavs, sr = _run_with_timeout(
+            lambda: model.generate_voice_design(text=text, language=language, instruct=instruct),
+            GENERATE_TIMEOUT_SEC, "voice-design",
         )
     elif mode == "voice-clone":
         ref_audio_raw = payload.get("refAudio")
@@ -259,12 +285,12 @@ def _qwen_generate(payload: dict, mode: str) -> tuple[bytes, int]:
                 print(f"[qwen3] ref_audio 처리 실패: {e}")
                 raise
         try:
-            wavs, sr = model.generate_voice_clone(
-                text=text,
-                language=language,
-                ref_audio=ref_audio_val,
-                ref_text=ref_text,
-                x_vector_only_mode=x_vector_only,
+            wavs, sr = _run_with_timeout(
+                lambda: model.generate_voice_clone(
+                    text=text, language=language, ref_audio=ref_audio_val,
+                    ref_text=ref_text, x_vector_only_mode=x_vector_only,
+                ),
+                GENERATE_TIMEOUT_SEC, "voice-clone",
             )
         finally:
             for p in (temp_ref_path, converted_path):
@@ -274,11 +300,12 @@ def _qwen_generate(payload: dict, mode: str) -> tuple[bytes, int]:
                     except OSError:
                         pass
     else:
-        wavs, sr = model.generate_custom_voice(
-            text=text,
-            language=language,
-            speaker=speaker,
-            instruct=instruct if instruct else None,
+        wavs, sr = _run_with_timeout(
+            lambda: model.generate_custom_voice(
+                text=text, language=language, speaker=speaker,
+                instruct=instruct if instruct else None,
+            ),
+            GENERATE_TIMEOUT_SEC, "custom-voice",
         )
     if not wavs:
         raise RuntimeError("Qwen3 출력 오디오 없음")
@@ -430,9 +457,13 @@ class TtsStubHandler(BaseHTTPRequestHandler):
         pass
 
 
+class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+
+
 def main():
     try:
-        server = HTTPServer(("", PORT), TtsStubHandler)
+        server = ThreadingHTTPServer(("", PORT), TtsStubHandler)
     except OSError as e:
         if e.errno == 98 or "10048" in str(e) or "Address already in use" in str(e):
             print(f"오류: 포트 {PORT}이 이미 사용 중입니다. 기존 tts_stub 프로세스를 종료한 뒤 다시 실행하세요.")
@@ -451,6 +482,7 @@ def main():
         for m, mid in _MODE_MODEL_DEFAULTS.items():
             print(f"  {m:16s} -> {mid}")
     print(f"  fallback 비프: {DURATION_SEC}초, base64 길이={len(FALLBACK_BASE64)}")
+    print(f"  생성 타임아웃: {GENERATE_TIMEOUT_SEC}초 (QWEN_TTS_TIMEOUT 환경변수로 변경 가능)")
     print("  상태 확인: 브라우저에서 http://localhost:8000/tts/info")
     if Qwen3TTSModel is None:
         print("  참고: qwen-tts 미설치. 설치: pip install qwen-tts")
